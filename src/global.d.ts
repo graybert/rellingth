@@ -8,6 +8,16 @@ export interface VideoMetadata {
   fileSize?: number
 }
 
+export interface ClipRecord {
+  filename: string
+  startTime: number
+  endTime: number
+  duration: number
+  fps?: number
+  resolution?: string
+  fileSize: number
+}
+
 export interface VideoRecord {
   id: string
   originalFilename: string
@@ -15,8 +25,9 @@ export interface VideoRecord {
   createdAt: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   metadata: VideoMetadata | null
-  clipState: 'NOT_STARTED' | 'DONE' | 'FAILED'
+  clipState: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'FAILED'
   lastError: string | null
+  clips: ClipRecord[]
 }
 
 declare global {

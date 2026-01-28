@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 export type VideoStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
-export type ClipState = 'NOT_STARTED' | 'DONE' | 'FAILED'
+export type ClipState = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'FAILED'
 
 export interface VideoMetadata {
   fps?: number
@@ -15,6 +15,16 @@ export interface VideoMetadata {
   fileSize?: number
 }
 
+export interface ClipRecord {
+  filename: string
+  startTime: number
+  endTime: number
+  duration: number
+  fps?: number
+  resolution?: string
+  fileSize: number
+}
+
 export interface VideoRecord {
   id: string
   originalFilename: string
@@ -24,6 +34,7 @@ export interface VideoRecord {
   metadata: VideoMetadata | null
   clipState: ClipState
   lastError: string | null
+  clips: ClipRecord[]
 }
 
 interface Database {
@@ -56,7 +67,15 @@ export class VideoDatabase {
     }
     try {
       const content = fs.readFileSync(this.dbPath, 'utf-8')
-      return JSON.parse(content)
+      const db = JSON.parse(content)
+
+      // Backward compatibility: add clips array to old records that don't have it
+      db.videos = db.videos.map((video: any) => ({
+        ...video,
+        clips: video.clips || []
+      }))
+
+      return db
     } catch (err) {
       console.error('Failed to read database:', err)
       return { videos: [] }

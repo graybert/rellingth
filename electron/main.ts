@@ -133,7 +133,8 @@ app.whenReady().then(() => {
         status: 'PENDING',
         metadata: null,
         clipState: 'NOT_STARTED',
-        lastError: null
+        lastError: null,
+        clips: []
       }
 
       db.createVideo(videoRecord)
