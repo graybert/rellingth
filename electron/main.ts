@@ -6,11 +6,13 @@ import * as fs from 'fs'
 import { randomUUID } from 'crypto'
 import { VideoDatabase, VideoRecord } from './db'
 import { extractMetadata } from './metadata'
+import { getLogger } from './logger'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const db = new VideoDatabase()
+const logger = getLogger()
 
 // Register custom protocol for serving local video files
 app.whenReady().then(() => {
@@ -84,6 +86,8 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  logger.info('Application started')
+
   // IPC handlers
   ipcMain.handle('videos:list', async () => {
     return db.listVideos()
@@ -101,37 +105,44 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('videos:createFromFile', async (_, sourcePath: string) => {
-    // Validate file extension
-    const ext = path.extname(sourcePath).toLowerCase()
-    if (ext !== '.mp4') {
-      throw new Error(`Invalid file type: ${ext}. Only .mp4 files are supported.`)
+    try {
+      // Validate file extension
+      const ext = path.extname(sourcePath).toLowerCase()
+      if (ext !== '.mp4') {
+        logger.warn('File type validation failed', { sourcePath, ext })
+        throw new Error(`Invalid file type: ${ext}. Only .mp4 files are supported.`)
+      }
+
+      const videoId = randomUUID()
+      const videoDir = db.getVideoDir(videoId)
+      const destPath = db.getOriginalVideoPath(videoId)
+      const clipsDir = db.getClipsDir(videoId)
+
+      // Create directory structure
+      fs.mkdirSync(videoDir, { recursive: true })
+      fs.mkdirSync(clipsDir, { recursive: true })
+
+      // Copy file
+      fs.copyFileSync(sourcePath, destPath)
+
+      const videoRecord: VideoRecord = {
+        id: videoId,
+        originalFilename: path.basename(sourcePath),
+        originalPath: destPath,
+        createdAt: new Date().toISOString(),
+        status: 'PENDING',
+        metadata: null,
+        clipState: 'NOT_STARTED',
+        lastError: null
+      }
+
+      db.createVideo(videoRecord)
+      logger.info('Video uploaded successfully', { videoId, filename: videoRecord.originalFilename })
+      return videoRecord
+    } catch (error: any) {
+      logger.error('Failed to create video from file', { sourcePath, error: error.message })
+      throw error
     }
-
-    const videoId = randomUUID()
-    const videoDir = db.getVideoDir(videoId)
-    const destPath = db.getOriginalVideoPath(videoId)
-    const clipsDir = db.getClipsDir(videoId)
-
-    // Create directory structure
-    fs.mkdirSync(videoDir, { recursive: true })
-    fs.mkdirSync(clipsDir, { recursive: true })
-
-    // Copy file
-    fs.copyFileSync(sourcePath, destPath)
-
-    const videoRecord: VideoRecord = {
-      id: videoId,
-      originalFilename: path.basename(sourcePath),
-      originalPath: destPath,
-      createdAt: new Date().toISOString(),
-      status: 'PENDING',
-      metadata: null,
-      clipState: 'NOT_STARTED',
-      lastError: null
-    }
-
-    db.createVideo(videoRecord)
-    return videoRecord
   })
 
   ipcMain.handle('videos:get', async (_, videoId: string) => {
@@ -139,13 +150,20 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('videos:extractMetadata', async (_, videoId: string) => {
-    const video = db.getVideo(videoId)
-    if (!video) {
-      throw new Error('Video not found')
+    try {
+      logger.info('Extracting metadata', { videoId })
+      const video = db.getVideo(videoId)
+      if (!video) {
+        throw new Error('Video not found')
+      }
+      const metadata = await extractMetadata(video.originalPath)
+      db.updateVideo(videoId, { metadata })
+      logger.info('Metadata extracted successfully', { videoId, metadata })
+      return metadata
+    } catch (error: any) {
+      logger.error('Failed to extract metadata', { videoId, error: error.message })
+      throw error
     }
-    const metadata = await extractMetadata(video.originalPath)
-    db.updateVideo(videoId, { metadata })
-    return metadata
   })
 
   ipcMain.handle('videos:updateStatus', async (_, videoId: string, status: string) => {
