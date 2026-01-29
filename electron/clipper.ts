@@ -90,7 +90,7 @@ async function createPreparedVideo(originalPath: string, preparedPath: string, v
     '-i', originalPath,
     '-force_key_frames', 'expr:gte(t,n_forced*120)', // Keyframe every 120 seconds
     '-c:v', 'libx264',
-    '-preset', 'medium',
+    '-preset', 'ultrafast', // Fast encoding - speed over quality for prep video
     '-crf', '23',
     '-c:a', 'aac',
     '-b:a', '192k',

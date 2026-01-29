@@ -87,6 +87,18 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   logger.info('Application started')
 
+  // Check for stuck IN_PROGRESS states on startup (corrupted by app crash/close)
+  const videos = db.listVideos()
+  videos.forEach(video => {
+    if (video.clipState === 'IN_PROGRESS') {
+      logger.warn('Detected stuck IN_PROGRESS state on startup, marking as FAILED', { videoId: video.id })
+      db.updateVideo(video.id, {
+        clipState: 'FAILED',
+        lastError: 'Clipping was interrupted (app closed or crashed). Please retry.'
+      })
+    }
+  })
+
   // IPC handlers
   ipcMain.handle('videos:list', async () => {
     return db.listVideos()
