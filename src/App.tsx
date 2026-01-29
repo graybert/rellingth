@@ -11,6 +11,8 @@ function App() {
   const [uploading, setUploading] = useState(false)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<View>('dashboard')
+  const [editMode, setEditMode] = useState(false)
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<string>>(new Set())
 
   const loadVideos = async () => {
     const list = await window.api.listVideos()
@@ -57,6 +59,41 @@ function App() {
     setCurrentView('qa')
   }
 
+  const toggleEditMode = () => {
+    setEditMode(!editMode)
+    setSelectedForDelete(new Set())
+  }
+
+  const toggleVideoSelection = (videoId: string) => {
+    const newSelection = new Set(selectedForDelete)
+    if (newSelection.has(videoId)) {
+      newSelection.delete(videoId)
+    } else {
+      newSelection.add(videoId)
+    }
+    setSelectedForDelete(newSelection)
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedForDelete.size === 0) return
+
+    const count = selectedForDelete.size
+    if (!confirm(`Delete ${count} video${count > 1 ? 's' : ''}? This cannot be undone.`)) {
+      return
+    }
+
+    try {
+      for (const videoId of selectedForDelete) {
+        await window.api.deleteVideo(videoId)
+      }
+      setSelectedForDelete(new Set())
+      setEditMode(false)
+      await loadVideos()
+    } catch (err: any) {
+      alert(`Failed to delete videos: ${err.message}`)
+    }
+  }
+
   if (currentView === 'qa' && selectedVideoId) {
     return <QAView videoId={selectedVideoId} onBack={handleBackToDashboard} onViewClips={handleViewClips} />
   }
@@ -68,9 +105,40 @@ function App() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>Video Ingestion Dashboard</h1>
-      <button onClick={handleUpload} disabled={uploading}>
-        {uploading ? 'Uploading...' : 'Upload Video'}
-      </button>
+      <div style={{ marginBottom: '20px' }}>
+        <button onClick={handleUpload} disabled={uploading} style={{ marginRight: '10px' }}>
+          {uploading ? 'Uploading...' : 'Upload Video'}
+        </button>
+        {videos.length > 0 && (
+          <>
+            <button
+              onClick={toggleEditMode}
+              style={{
+                marginRight: '10px',
+                background: editMode ? '#666' : '#fff',
+                color: editMode ? '#fff' : '#000',
+                border: '1px solid #666'
+              }}
+            >
+              {editMode ? 'Cancel' : 'Edit'}
+            </button>
+            {editMode && selectedForDelete.size > 0 && (
+              <button
+                onClick={handleDeleteSelected}
+                style={{
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  cursor: 'pointer'
+                }}
+              >
+                Delete Selected ({selectedForDelete.size})
+              </button>
+            )}
+          </>
+        )}
+      </div>
       <div style={{ marginTop: '20px' }}>
         <h2>Videos</h2>
         {videos.length === 0 ? (
@@ -79,6 +147,7 @@ function App() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
+                {editMode && <th style={{ width: '40px', padding: '8px', borderBottom: '1px solid #ddd' }}></th>}
                 <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Filename</th>
                 <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Status</th>
                 <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #ddd' }}>Created</th>
@@ -88,11 +157,35 @@ function App() {
               {videos.map((video) => (
                 <tr
                   key={video.id}
-                  onClick={() => handleVideoClick(video.id)}
-                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    if (editMode) {
+                      e.stopPropagation()
+                      toggleVideoSelection(video.id)
+                    } else {
+                      handleVideoClick(video.id)
+                    }
+                  }}
+                  style={{ cursor: 'pointer', background: selectedForDelete.has(video.id) ? '#ffebee' : 'transparent' }}
                 >
+                  {editMode && (
+                    <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedForDelete.has(video.id)}
+                        onChange={() => toggleVideoSelection(video.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                  )}
                   <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{video.originalFilename}</td>
-                  <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{video.status}</td>
+                  <td style={{
+                    padding: '8px',
+                    borderBottom: '1px solid #eee',
+                    color: video.status === 'APPROVED' ? '#4CAF50' : video.status === 'REJECTED' ? '#f44336' : '#666',
+                    fontWeight: video.status !== 'PENDING' ? 'bold' : 'normal'
+                  }}>
+                    {video.status}
+                  </td>
                   <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
                     {new Date(video.createdAt).toLocaleString()}
                   </td>

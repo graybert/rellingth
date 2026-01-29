@@ -143,7 +143,9 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
       </div>
 
       <h1>QA: {video.originalFilename}</h1>
-      <p>Status: <strong>{video.status}</strong></p>
+      <p>Status: <strong style={{
+        color: video.status === 'APPROVED' ? '#4CAF50' : video.status === 'REJECTED' ? '#f44336' : '#666'
+      }}>{video.status}</strong></p>
 
       {error && (
         <div style={{ padding: '10px', background: '#fee', border: '1px solid #c00', marginBottom: '20px' }}>
@@ -227,7 +229,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
 
       {video.status === 'APPROVED' && (
         <div style={{ marginTop: '20px', padding: '20px', background: '#f5f5f5', border: '1px solid #ddd' }}>
-          <h2>Clip Generation</h2>
+          <h2 style={{ color: '#333', marginTop: 0 }}>Clip Generation</h2>
 
           {video.clipState === 'NOT_STARTED' && (
             <div>
@@ -240,11 +242,11 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
                     onChange={(e) => setPreciseMode(e.target.checked)}
                     disabled={clipping}
                   />
-                  <span style={{ fontSize: '14px' }}>
+                  <span style={{ fontSize: '14px', color: '#333' }}>
                     <strong>Precise mode</strong> (exact 2:00 clips)
                   </span>
                 </label>
-                <p style={{ fontSize: '12px', color: '#666', marginLeft: '26px', marginTop: '5px' }}>
+                <p style={{ fontSize: '12px', color: '#555', marginLeft: '26px', marginTop: '5px' }}>
                   {preciseMode ? (
                     <>First generation creates prepared video (~5-10 min for 60-min video), future regenerations are fast</>
                   ) : (
@@ -313,7 +315,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
                     onChange={(e) => setPreciseMode(e.target.checked)}
                     disabled={clipping}
                   />
-                  <span style={{ fontSize: '14px' }}>
+                  <span style={{ fontSize: '14px', color: '#333' }}>
                     <strong>Precise mode</strong> for regeneration
                   </span>
                 </label>
