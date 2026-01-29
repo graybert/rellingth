@@ -26,6 +26,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
   const [extracting, setExtracting] = useState(false)
   const [clipping, setClipping] = useState(false)
   const [preciseMode, setPreciseMode] = useState(false)
+  const [showMetadata, setShowMetadata] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -165,48 +166,77 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
       </div>
 
       <div style={{ marginBottom: '20px' }}>
-        <h2>Technical Metadata</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <h2 style={{ margin: 0 }}>Technical Metadata</h2>
+          {video.metadata && (
+            <button
+              onClick={() => setShowMetadata(!showMetadata)}
+              style={{
+                padding: '4px 12px',
+                background: 'transparent',
+                color: '#2196F3',
+                border: '1px solid #2196F3',
+                cursor: 'pointer',
+                fontSize: '12px',
+                borderRadius: '3px'
+              }}
+            >
+              {showMetadata ? 'Hide' : 'Show'}
+            </button>
+          )}
+        </div>
         {!video.metadata ? (
           <div>
             <p>Metadata not extracted yet.</p>
-            <button onClick={handleExtractMetadata} disabled={extracting}>
+            <button
+              onClick={handleExtractMetadata}
+              disabled={extracting}
+              style={{
+                padding: '10px 20px',
+                background: '#2196F3',
+                color: 'white',
+                border: 'none',
+                cursor: extracting ? 'default' : 'pointer',
+                opacity: extracting ? 0.6 : 1
+              }}
+            >
               {extracting ? 'Extracting...' : 'Extract Metadata'}
             </button>
           </div>
-        ) : (
-          <table style={{ borderCollapse: 'collapse' }}>
+        ) : showMetadata ? (
+          <table style={{ borderCollapse: 'collapse', maxWidth: '600px', width: '100%' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>FPS</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>FPS</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{video.metadata.fps || 'N/A'}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>Resolution</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>Resolution</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{video.metadata.resolution || 'N/A'}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>Aspect Ratio</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>Aspect Ratio</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{video.metadata.aspectRatio || 'N/A'}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>Duration</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>Duration</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{formatDuration(video.metadata.duration)}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>Rotation</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>Rotation</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{video.metadata.rotation || 'None (0°)'}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>Codec</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>Codec</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{video.metadata.codec || 'N/A'}</td>
               </tr>
               <tr>
-                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold' }}>File Size</td>
+                <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>File Size</td>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd' }}>{formatBytes(video.metadata.fileSize)}</td>
               </tr>
             </tbody>
           </table>
-        )}
+        ) : null}
       </div>
 
       <div style={{ marginBottom: '20px' }}>

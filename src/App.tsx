@@ -106,7 +106,19 @@ function App() {
     <div style={{ padding: '20px' }}>
       <h1>Video Ingestion Dashboard</h1>
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={handleUpload} disabled={uploading} style={{ marginRight: '10px' }}>
+        <button
+          onClick={handleUpload}
+          disabled={uploading}
+          style={{
+            marginRight: '10px',
+            padding: '10px 20px',
+            background: '#2196F3',
+            color: 'white',
+            border: 'none',
+            cursor: uploading ? 'default' : 'pointer',
+            opacity: uploading ? 0.6 : 1
+          }}
+        >
           {uploading ? 'Uploading...' : 'Upload Video'}
         </button>
         {videos.length > 0 && (
