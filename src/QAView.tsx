@@ -233,7 +233,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
 
           {video.clipState === 'NOT_STARTED' && (
             <div>
-              <p>Video is approved. Generate 2-minute clips for distribution.</p>
+              <p style={{ color: '#333' }}>Video is approved. Generate 2-minute clips for distribution.</p>
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input

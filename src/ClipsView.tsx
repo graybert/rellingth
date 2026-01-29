@@ -72,7 +72,7 @@ export default function ClipsView({ videoId, onBack }: ClipsViewProps) {
 
       {selectedClip && (
         <div style={{ marginBottom: '30px', padding: '20px', background: '#f9f9f9', border: '1px solid #ddd' }}>
-          <h2 style={{ marginTop: 0 }}>{selectedClip.filename}</h2>
+          <h2 style={{ marginTop: 0, color: '#333' }}>{selectedClip.filename}</h2>
           <video
             key={clipPath}
             controls
@@ -83,7 +83,7 @@ export default function ClipsView({ videoId, onBack }: ClipsViewProps) {
             Your browser does not support the video tag.
           </video>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', maxWidth: '500px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', maxWidth: '500px', color: '#333' }}>
             <div>
               <strong>Duration:</strong> {formatDuration(selectedClip.duration)}
             </div>
@@ -120,7 +120,7 @@ export default function ClipsView({ videoId, onBack }: ClipsViewProps) {
               borderRadius: '4px'
             }}
           >
-            <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{clip.filename}</div>
+            <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#333' }}>{clip.filename}</div>
             <div style={{ fontSize: '13px', color: '#666' }}>
               {formatDuration(clip.duration)}
             </div>

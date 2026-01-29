@@ -165,7 +165,11 @@ function App() {
                       handleVideoClick(video.id)
                     }
                   }}
-                  style={{ cursor: 'pointer', background: selectedForDelete.has(video.id) ? '#ffebee' : 'transparent' }}
+                  style={{
+                    cursor: 'pointer',
+                    background: selectedForDelete.has(video.id) ? '#e8f5e9' : 'transparent',
+                    borderLeft: selectedForDelete.has(video.id) ? '3px solid #4CAF50' : '3px solid transparent'
+                  }}
                 >
                   {editMode && (
                     <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
