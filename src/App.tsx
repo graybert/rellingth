@@ -179,7 +179,7 @@ function App() {
                   }}
                   style={{
                     cursor: 'pointer',
-                    background: selectedForDelete.has(video.id) ? '#e8f5e9' : 'transparent',
+                    background: 'transparent',
                     borderLeft: selectedForDelete.has(video.id) ? '3px solid #4CAF50' : '3px solid transparent'
                   }}
                 >
