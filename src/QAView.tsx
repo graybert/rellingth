@@ -4,6 +4,7 @@ import type { VideoRecord } from './global'
 interface QAViewProps {
   videoId: string
   onBack: () => void
+  onViewClips: (videoId: string) => void
 }
 
 function formatBytes(bytes: number | undefined): string {
@@ -19,7 +20,7 @@ function formatDuration(seconds: number | undefined): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-export default function QAView({ videoId, onBack }: QAViewProps) {
+export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
   const [video, setVideo] = useState<VideoRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [extracting, setExtracting] = useState(false)
@@ -274,11 +275,11 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
 
           {video.clipState === 'DONE' && (
             <div>
-              <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+              <p style={{ color: '#4CAF50', fontWeight: 'bold', fontSize: '16px' }}>
                 ✓ Clips generated successfully ({video.clips.length} clips)
                 {video.lastClipGenerationTime && (
-                  <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '10px' }}>
-                    ({video.lastClipGenerationTime.toFixed(1)}s)
+                  <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '10px', fontSize: '14px' }}>
+                    in {video.lastClipGenerationTime.toFixed(1)}s
                   </span>
                 )}
               </p>
@@ -287,7 +288,24 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
                   ℹ️ Prepared video exists - future regenerations will be fast
                 </p>
               )}
-              <div style={{ marginTop: '10px', marginBottom: '15px' }}>
+
+              <div style={{ marginTop: '15px' }}>
+                <button
+                  onClick={() => onViewClips(videoId)}
+                  style={{ padding: '10px 20px', background: '#2196F3', color: 'white', border: 'none', cursor: 'pointer', marginRight: '10px' }}
+                >
+                  View Clips
+                </button>
+                <button
+                  onClick={handleRegenerateClips}
+                  disabled={clipping}
+                  style={{ padding: '10px 20px', background: '#ff9800', color: 'white', border: 'none', cursor: 'pointer' }}
+                >
+                  Regenerate Clips
+                </button>
+              </div>
+
+              <div style={{ marginTop: '15px', marginBottom: '15px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -299,38 +317,6 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
                     <strong>Precise mode</strong> for regeneration
                   </span>
                 </label>
-              </div>
-              <div style={{ marginTop: '10px' }}>
-                <button
-                  onClick={handleRegenerateClips}
-                  disabled={clipping}
-                  style={{ marginRight: '10px', padding: '8px 16px', background: '#ff9800', color: 'white', border: 'none', cursor: 'pointer' }}
-                >
-                  Regenerate Clips
-                </button>
-              </div>
-              <div style={{ marginTop: '15px' }}>
-                <h3>Generated Clips:</h3>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Clip</th>
-                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Duration</th>
-                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Resolution</th>
-                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>File Size</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {video.clips.map((clip, idx) => (
-                      <tr key={idx}>
-                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{clip.filename}</td>
-                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{formatDuration(clip.duration)}</td>
-                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{clip.resolution || 'N/A'}</td>
-                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{formatBytes(clip.fileSize)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           )}

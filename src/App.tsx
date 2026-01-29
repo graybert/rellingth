@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react'
 import './App.css'
 import type { VideoRecord } from './global'
 import QAView from './QAView'
+import ClipsView from './ClipsView'
+
+type View = 'dashboard' | 'qa' | 'clips'
 
 function App() {
   const [videos, setVideos] = useState<VideoRecord[]>([])
   const [uploading, setUploading] = useState(false)
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null)
+  const [currentView, setCurrentView] = useState<View>('dashboard')
 
   const loadVideos = async () => {
     const list = await window.api.listVideos()
@@ -35,15 +39,30 @@ function App() {
 
   const handleVideoClick = (videoId: string) => {
     setSelectedVideoId(videoId)
+    setCurrentView('qa')
   }
 
-  const handleBack = () => {
+  const handleViewClips = (videoId: string) => {
+    setSelectedVideoId(videoId)
+    setCurrentView('clips')
+  }
+
+  const handleBackToDashboard = () => {
     setSelectedVideoId(null)
+    setCurrentView('dashboard')
     loadVideos()
   }
 
-  if (selectedVideoId) {
-    return <QAView videoId={selectedVideoId} onBack={handleBack} />
+  const handleBackToQA = () => {
+    setCurrentView('qa')
+  }
+
+  if (currentView === 'qa' && selectedVideoId) {
+    return <QAView videoId={selectedVideoId} onBack={handleBackToDashboard} onViewClips={handleViewClips} />
+  }
+
+  if (currentView === 'clips' && selectedVideoId) {
+    return <ClipsView videoId={selectedVideoId} onBack={handleBackToQA} />
   }
 
   return (
