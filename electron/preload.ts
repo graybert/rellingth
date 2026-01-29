@@ -63,5 +63,6 @@ contextBridge.exposeInMainWorld('api', {
   extractMetadata: (videoId: string): Promise<VideoMetadata> => ipcRenderer.invoke('videos:extractMetadata', videoId),
   updateStatus: (videoId: string, status: string): Promise<void> => ipcRenderer.invoke('videos:updateStatus', videoId, status),
   generateClips: (videoId: string): Promise<ClipRecord[]> => ipcRenderer.invoke('videos:generateClips', videoId),
-  regenerateClips: (videoId: string): Promise<ClipRecord[]> => ipcRenderer.invoke('videos:regenerateClips', videoId)
+  regenerateClips: (videoId: string): Promise<ClipRecord[]> => ipcRenderer.invoke('videos:regenerateClips', videoId),
+  deleteVideo: (videoId: string): Promise<void> => ipcRenderer.invoke('videos:delete', videoId)
 })

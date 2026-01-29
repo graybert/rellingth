@@ -194,5 +194,29 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('videos:delete', async (_, videoId: string) => {
+    try {
+      logger.info('Deleting video', { videoId })
+      const video = db.getVideo(videoId)
+      if (!video) {
+        throw new Error('Video not found')
+      }
+
+      // Delete video directory and all contents
+      const videoDir = db.getVideoDir(videoId)
+      if (fs.existsSync(videoDir)) {
+        fs.rmSync(videoDir, { recursive: true, force: true })
+        logger.info('Deleted video directory', { videoDir })
+      }
+
+      // Remove from database
+      db.deleteVideo(videoId)
+      logger.info('Video deleted successfully', { videoId })
+    } catch (error: any) {
+      logger.error('Failed to delete video', { videoId, error: error.message })
+      throw error
+    }
+  })
+
   createWindow()
 })

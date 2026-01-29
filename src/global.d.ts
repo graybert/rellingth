@@ -41,6 +41,7 @@ declare global {
       updateStatus: (videoId: string, status: string) => Promise<void>
       generateClips: (videoId: string) => Promise<ClipRecord[]>
       regenerateClips: (videoId: string) => Promise<ClipRecord[]>
+      deleteVideo: (videoId: string) => Promise<void>
     }
   }
 }

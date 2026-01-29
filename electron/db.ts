@@ -1,4 +1,3 @@
-import { app } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -124,6 +123,12 @@ export class VideoDatabase {
       throw new Error(`Video ${videoId} not found`)
     }
     db.videos[index] = { ...db.videos[index], ...updates }
+    this.writeDb(db)
+  }
+
+  public deleteVideo(videoId: string): void {
+    const db = this.readDb()
+    db.videos = db.videos.filter(v => v.id !== videoId)
     this.writeDb(db)
   }
 }

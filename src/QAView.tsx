@@ -103,12 +103,32 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm('This will permanently delete the video and all clips. Continue?')) {
+      return
+    }
+    try {
+      await window.api.deleteVideo(videoId)
+      onBack() // Return to dashboard
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
   if (loading) return <div style={{ padding: '20px' }}>Loading...</div>
   if (!video) return <div style={{ padding: '20px' }}>Video not found</div>
 
   return (
     <div style={{ padding: '20px' }}>
-      <button onClick={onBack} style={{ marginBottom: '20px' }}>← Back to Dashboard</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button onClick={onBack}>← Back to Dashboard</button>
+        <button
+          onClick={handleDelete}
+          style={{ padding: '8px 16px', background: '#f44336', color: 'white', border: 'none', cursor: 'pointer' }}
+        >
+          Delete Video
+        </button>
+      </div>
 
       <h1>QA: {video.originalFilename}</h1>
       <p>Status: <strong>{video.status}</strong></p>
