@@ -143,7 +143,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
         </button>
       </div>
 
-      <h1>QA: {video.originalFilename}</h1>
+      <h1 style={{ fontSize: '24px' }}>QA: {video.originalFilename}</h1>
       <p style={{ color: '#666', fontSize: '14px', fontFamily: 'monospace' }}>Video ID: {video.id}</p>
       <p>Status: <strong style={{
         color: video.status === 'APPROVED' ? '#4CAF50' : video.status === 'REJECTED' ? '#f44336' : '#666'
