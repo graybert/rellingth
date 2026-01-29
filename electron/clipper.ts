@@ -118,18 +118,29 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
     fs.mkdirSync(clipsDir, { recursive: true })
   }
 
-  // Step 5: Run ffmpeg to generate clips
+  // Step 5: Run ffmpeg to generate clips with re-encoding for precise boundaries
+  // Trade-off: Slower (re-encode) but exact 2-minute clips vs fast (copy) but imprecise
+  // For QA tool, precision matters more than speed
   const outputPattern = path.join(clipsDir, 'clip_%03d.mp4')
   const command = [
     '-i', originalPath,
     '-f', 'segment',
     '-segment_time', '120',
-    '-c', 'copy',
+    '-force_key_frames', 'expr:gte(t,n_forced*120)', // Force keyframe every 120 seconds
+    '-c:v', 'libx264', // H.264 video codec (re-encode for precision)
+    '-preset', 'medium', // Balance speed vs quality
+    '-crf', '23', // Constant rate factor - 23 is high quality
+    '-c:a', 'aac', // AAC audio codec
+    '-b:a', '192k', // Audio bitrate 192kbps
     '-reset_timestamps', '1',
     outputPattern
   ]
 
-  logger.info('Executing ffmpeg command', { videoId, command: `ffmpeg ${command.join(' ')}` })
+  logger.info('Executing ffmpeg command (re-encode mode for precise boundaries)', {
+    videoId,
+    command: `ffmpeg ${command.join(' ')}`,
+    note: 'Using re-encode for exact 2-minute clips. Slower but precise.'
+  })
 
   try {
     const startTime = Date.now()

@@ -48,10 +48,11 @@ export class VideoDatabase {
   private dbPath: string
 
   constructor() {
-    // Use app root directory instead of userData
-    const appPath = app.getAppPath()
-    this.dataDir = path.join(path.dirname(appPath), 'data')
+    // Use process.cwd() to get repo root (same as logger.ts)
+    // This is reliable across dev and production builds
+    this.dataDir = path.join(process.cwd(), 'data')
     this.dbPath = path.join(this.dataDir, DB_FILE)
+    console.log('[Database] Data directory:', this.dataDir)
     this.ensureDataDir()
   }
 
