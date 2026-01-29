@@ -77,7 +77,7 @@ export default function ClipsView({ videoId, onBack }: ClipsViewProps) {
             key={clipPath}
             controls
             autoPlay
-            style={{ maxWidth: '800px', width: '100%', background: '#000', marginBottom: '15px' }}
+            style={{ maxWidth: '800px', width: '100%', background: '#000', marginBottom: '15px', display: 'block', margin: '0 auto 15px auto' }}
             src={clipPath}
           >
             Your browser does not support the video tag.

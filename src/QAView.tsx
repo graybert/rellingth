@@ -159,7 +159,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
         <h2>Video Player</h2>
         <video
           controls
-          style={{ maxWidth: '800px', width: '100%', background: '#000' }}
+          style={{ maxWidth: '800px', width: '100%', background: '#000', display: 'block', margin: '0 auto' }}
           src={`video-file://${video.originalPath}`}
         >
           Your browser does not support the video tag.
@@ -205,7 +205,7 @@ export default function QAView({ videoId, onBack, onViewClips }: QAViewProps) {
             </button>
           </div>
         ) : showMetadata ? (
-          <table style={{ borderCollapse: 'collapse', maxWidth: '600px', width: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', maxWidth: '600px', width: '100%', margin: '0 auto' }}>
             <tbody>
               <tr>
                 <td style={{ padding: '8px', borderBottom: '1px solid #ddd', fontWeight: 'bold', width: '40%' }}>FPS</td>
