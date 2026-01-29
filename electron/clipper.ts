@@ -21,6 +21,11 @@ interface FFProbeOutput {
   }>
 }
 
+interface ClipGenerationResult {
+  clips: ClipRecord[]
+  generationTimeSeconds: number
+}
+
 async function getClipMetadata(clipPath: string): Promise<Partial<ClipRecord>> {
   try {
     const { stdout } = await execFileAsync('ffprobe', [
@@ -56,7 +61,6 @@ async function getClipMetadata(clipPath: string): Promise<Partial<ClipRecord>> {
     }
   } catch (error: any) {
     logger.error('Failed to extract clip metadata', { clipPath, error: error.message })
-    // Return partial data - we have filename and fileSize at minimum
     const stats = fs.statSync(clipPath)
     return {
       fileSize: stats.size
@@ -79,7 +83,30 @@ function deleteClipsFromDisk(clipsDir: string): void {
   }
 }
 
-export async function generateClips(videoId: string, db: VideoDatabase): Promise<ClipRecord[]> {
+async function createPreparedVideo(originalPath: string, preparedPath: string, videoId: string): Promise<void> {
+  logger.info('Creating prepared video with keyframes every 120s', { videoId, preparedPath })
+
+  const command = [
+    '-i', originalPath,
+    '-force_key_frames', 'expr:gte(t,n_forced*120)', // Keyframe every 120 seconds
+    '-c:v', 'libx264',
+    '-preset', 'medium',
+    '-crf', '23',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    preparedPath
+  ]
+
+  const startTime = Date.now()
+  const { stderr } = await execFileAsync('ffmpeg', command)
+  const duration = ((Date.now() - startTime) / 1000).toFixed(2)
+
+  logger.ffmpegLog('createPreparedVideo', videoId, `ffmpeg ${command.join(' ')}`, 0, stderr)
+  logger.info('Prepared video created', { videoId, durationSeconds: duration })
+}
+
+export async function generateClips(videoId: string, db: VideoDatabase, preciseMode: boolean = false): Promise<ClipGenerationResult> {
+  const overallStartTime = Date.now()
   const video = db.getVideo(videoId)
   if (!video) {
     throw new Error('Video not found')
@@ -88,11 +115,10 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
   const clipsDir = db.getClipsDir(videoId)
   const originalPath = video.originalPath
 
-  logger.info('Starting clip generation', { videoId, originalPath })
+  logger.info('Starting clip generation', { videoId, originalPath, preciseMode })
 
-  // Step 1: Check idempotency - if DONE and clips exist on disk, skip
+  // Check idempotency
   if (video.clipState === 'DONE' && video.clips.length > 0) {
-    // Verify clips still exist on disk
     const allExist = video.clips.every(clip => {
       const clipPath = path.join(clipsDir, clip.filename)
       return fs.existsSync(clipPath)
@@ -100,58 +126,70 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
 
     if (allExist) {
       logger.info('Clips already generated, skipping', { videoId, clipCount: video.clips.length })
-      return video.clips
+      return {
+        clips: video.clips,
+        generationTimeSeconds: 0
+      }
     } else {
       logger.warn('Clips marked as DONE but files missing, regenerating', { videoId })
     }
   }
 
-  // Step 2: Set state to IN_PROGRESS
+  // Set state to IN_PROGRESS
   db.updateVideo(videoId, { clipState: 'IN_PROGRESS', lastError: null })
   logger.info('Set clip state to IN_PROGRESS', { videoId })
 
-  // Step 3: Clean slate - delete any existing clips
+  // Clean slate - delete any existing clips
   deleteClipsFromDisk(clipsDir)
 
-  // Step 4: Ensure clips directory exists
+  // Ensure clips directory exists
   if (!fs.existsSync(clipsDir)) {
     fs.mkdirSync(clipsDir, { recursive: true })
   }
 
-  // Step 5: Run ffmpeg to generate clips with re-encoding for precise boundaries
-  // Trade-off: Slower (re-encode) but exact 2-minute clips vs fast (copy) but imprecise
-  // For QA tool, precision matters more than speed
-  const outputPattern = path.join(clipsDir, 'clip_%03d.mp4')
-  const command = [
-    '-i', originalPath,
-    '-f', 'segment',
-    '-segment_time', '120',
-    '-force_key_frames', 'expr:gte(t,n_forced*120)', // Force keyframe every 120 seconds
-    '-c:v', 'libx264', // H.264 video codec (re-encode for precision)
-    '-preset', 'medium', // Balance speed vs quality
-    '-crf', '23', // Constant rate factor - 23 is high quality
-    '-c:a', 'aac', // AAC audio codec
-    '-b:a', '192k', // Audio bitrate 192kbps
-    '-reset_timestamps', '1',
-    outputPattern
-  ]
-
-  logger.info('Executing ffmpeg command (re-encode mode for precise boundaries)', {
-    videoId,
-    command: `ffmpeg ${command.join(' ')}`,
-    note: 'Using re-encode for exact 2-minute clips. Slower but precise.'
-  })
-
   try {
-    const startTime = Date.now()
-    const { stderr } = await execFileAsync('ffmpeg', command)
-    const endTime = Date.now()
-    const duration = ((endTime - startTime) / 1000).toFixed(2)
+    let sourceVideoPath = originalPath
 
-    logger.ffmpegLog('generateClips', videoId, `ffmpeg ${command.join(' ')}`, 0, stderr)
-    logger.info('ffmpeg completed successfully', { videoId, durationSeconds: duration })
+    // Precise mode: Create prepared video if it doesn't exist
+    if (preciseMode) {
+      const preparedPath = db.getPreparedVideoPath(videoId)
 
-    // Step 6: Scan clips directory and extract metadata
+      if (!fs.existsSync(preparedPath)) {
+        logger.info('Precise mode: Creating prepared video (one-time cost)', { videoId })
+        await createPreparedVideo(originalPath, preparedPath, videoId)
+        db.updateVideo(videoId, { preparedVideoPath: preparedPath })
+        sourceVideoPath = preparedPath
+      } else {
+        logger.info('Precise mode: Using existing prepared video (fast)', { videoId })
+        sourceVideoPath = preparedPath
+      }
+    }
+
+    // Segment video (fast with -c copy)
+    const outputPattern = path.join(clipsDir, 'clip_%03d.mp4')
+    const segmentCommand = [
+      '-i', sourceVideoPath,
+      '-f', 'segment',
+      '-segment_time', '120',
+      '-c', 'copy', // Fast copy mode
+      '-reset_timestamps', '1',
+      outputPattern
+    ]
+
+    const mode = preciseMode ? 'precise (using prepared video)' : 'fast (copy mode, approximate durations)'
+    logger.info(`Executing ffmpeg segmentation in ${mode}`, {
+      videoId,
+      command: `ffmpeg ${segmentCommand.join(' ')}`
+    })
+
+    const segmentStartTime = Date.now()
+    const { stderr } = await execFileAsync('ffmpeg', segmentCommand)
+    const segmentDuration = ((Date.now() - segmentStartTime) / 1000).toFixed(2)
+
+    logger.ffmpegLog('segmentVideo', videoId, `ffmpeg ${segmentCommand.join(' ')}`, 0, stderr)
+    logger.info('Segmentation completed', { videoId, durationSeconds: segmentDuration })
+
+    // Scan clips directory and extract metadata
     const clipFiles = fs.readdirSync(clipsDir)
       .filter(f => f.endsWith('.mp4'))
       .sort()
@@ -163,7 +201,6 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
       const filename = clipFiles[i]
       const clipPath = path.join(clipsDir, filename)
 
-      // Calculate start and end times (each clip is 120 seconds except possibly the last)
       const startTime = i * 120
       const metadata = await getClipMetadata(clipPath)
       const clipDuration = metadata.duration || 120
@@ -180,29 +217,35 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
       })
     }
 
-    // Step 7: Update database with clips and set state to DONE
+    const totalTime = ((Date.now() - overallStartTime) / 1000).toFixed(2)
+
+    // Update database
     db.updateVideo(videoId, {
       clips,
       clipState: 'DONE',
-      lastError: null
+      lastError: null,
+      lastClipGenerationTime: parseFloat(totalTime)
     })
 
     logger.info('Clip generation completed successfully', {
       videoId,
       clipCount: clips.length,
-      totalSize: clips.reduce((sum, c) => sum + c.fileSize, 0)
+      totalSize: clips.reduce((sum, c) => sum + c.fileSize, 0),
+      totalTimeSeconds: totalTime
     })
 
-    return clips
+    return {
+      clips,
+      generationTimeSeconds: parseFloat(totalTime)
+    }
   } catch (error: any) {
     // Clean up partial clips on failure
     deleteClipsFromDisk(clipsDir)
 
     const errorMessage = `ffmpeg failed: ${error.message}`
     logger.error('Clip generation failed', { videoId, error: error.message, stderr: error.stderr })
-    logger.ffmpegLog('generateClips', videoId, `ffmpeg ${command.join(' ')}`, error.code || 1, error.stderr || error.message)
+    logger.ffmpegLog('generateClips', videoId, 'ffmpeg (failed)', error.code || 1, error.stderr || error.message)
 
-    // Update database with error state
     db.updateVideo(videoId, {
       clipState: 'FAILED',
       lastError: errorMessage,
@@ -213,10 +256,9 @@ export async function generateClips(videoId: string, db: VideoDatabase): Promise
   }
 }
 
-export async function regenerateClips(videoId: string, db: VideoDatabase): Promise<ClipRecord[]> {
-  logger.info('Regenerating clips (clean slate)', { videoId })
+export async function regenerateClips(videoId: string, db: VideoDatabase, preciseMode: boolean = false): Promise<ClipGenerationResult> {
+  logger.info('Regenerating clips (clean slate)', { videoId, preciseMode })
 
-  // Force clean slate by clearing state
   const clipsDir = db.getClipsDir(videoId)
   deleteClipsFromDisk(clipsDir)
   db.updateVideo(videoId, {
@@ -225,6 +267,5 @@ export async function regenerateClips(videoId: string, db: VideoDatabase): Promi
     lastError: null
   })
 
-  // Now generate fresh
-  return generateClips(videoId, db)
+  return generateClips(videoId, db, preciseMode)
 }

@@ -128,12 +128,14 @@ app.whenReady().then(() => {
         id: videoId,
         originalFilename: path.basename(sourcePath),
         originalPath: destPath,
+        preparedVideoPath: null,
         createdAt: new Date().toISOString(),
         status: 'PENDING',
         metadata: null,
         clipState: 'NOT_STARTED',
         lastError: null,
-        clips: []
+        clips: [],
+        lastClipGenerationTime: null
       }
 
       db.createVideo(videoRecord)
@@ -170,24 +172,32 @@ app.whenReady().then(() => {
     db.updateVideo(videoId, { status: status as VideoRecord['status'] })
   })
 
-  ipcMain.handle('videos:generateClips', async (_, videoId: string) => {
+  ipcMain.handle('videos:generateClips', async (_, videoId: string, preciseMode: boolean) => {
     try {
-      logger.info('Generating clips requested', { videoId })
-      const clips = await generateClips(videoId, db)
-      logger.info('Clips generated successfully', { videoId, clipCount: clips.length })
-      return clips
+      logger.info('Generating clips requested', { videoId, preciseMode })
+      const result = await generateClips(videoId, db, preciseMode)
+      logger.info('Clips generated successfully', {
+        videoId,
+        clipCount: result.clips.length,
+        generationTimeSeconds: result.generationTimeSeconds
+      })
+      return result
     } catch (error: any) {
       logger.error('Failed to generate clips', { videoId, error: error.message })
       throw error
     }
   })
 
-  ipcMain.handle('videos:regenerateClips', async (_, videoId: string) => {
+  ipcMain.handle('videos:regenerateClips', async (_, videoId: string, preciseMode: boolean) => {
     try {
-      logger.info('Regenerating clips requested', { videoId })
-      const clips = await regenerateClips(videoId, db)
-      logger.info('Clips regenerated successfully', { videoId, clipCount: clips.length })
-      return clips
+      logger.info('Regenerating clips requested', { videoId, preciseMode })
+      const result = await regenerateClips(videoId, db, preciseMode)
+      logger.info('Clips regenerated successfully', {
+        videoId,
+        clipCount: result.clips.length,
+        generationTimeSeconds: result.generationTimeSeconds
+      })
+      return result
     } catch (error: any) {
       logger.error('Failed to regenerate clips', { videoId, error: error.message })
       throw error

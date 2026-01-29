@@ -20,16 +20,23 @@ export interface ClipRecord {
   fileSize: number
 }
 
+export interface ClipGenerationResult {
+  clips: ClipRecord[]
+  generationTimeSeconds: number
+}
+
 export interface VideoRecord {
   id: string
   originalFilename: string
   originalPath: string
+  preparedVideoPath: string | null
   createdAt: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   metadata: VideoMetadata | null
   clipState: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'FAILED'
   lastError: string | null
   clips: ClipRecord[]
+  lastClipGenerationTime: number | null
 }
 
 // --------- Expose some API to the Renderer process ---------
@@ -62,7 +69,7 @@ contextBridge.exposeInMainWorld('api', {
   getVideo: (videoId: string): Promise<VideoRecord | null> => ipcRenderer.invoke('videos:get', videoId),
   extractMetadata: (videoId: string): Promise<VideoMetadata> => ipcRenderer.invoke('videos:extractMetadata', videoId),
   updateStatus: (videoId: string, status: string): Promise<void> => ipcRenderer.invoke('videos:updateStatus', videoId, status),
-  generateClips: (videoId: string): Promise<ClipRecord[]> => ipcRenderer.invoke('videos:generateClips', videoId),
-  regenerateClips: (videoId: string): Promise<ClipRecord[]> => ipcRenderer.invoke('videos:regenerateClips', videoId),
+  generateClips: (videoId: string, preciseMode: boolean): Promise<ClipGenerationResult> => ipcRenderer.invoke('videos:generateClips', videoId, preciseMode),
+  regenerateClips: (videoId: string, preciseMode: boolean): Promise<ClipGenerationResult> => ipcRenderer.invoke('videos:regenerateClips', videoId, preciseMode),
   deleteVideo: (videoId: string): Promise<void> => ipcRenderer.invoke('videos:delete', videoId)
 })

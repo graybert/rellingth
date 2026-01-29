@@ -28,12 +28,14 @@ export interface VideoRecord {
   id: string
   originalFilename: string
   originalPath: string
+  preparedVideoPath: string | null
   createdAt: string
   status: VideoStatus
   metadata: VideoMetadata | null
   clipState: ClipState
   lastError: string | null
   clips: ClipRecord[]
+  lastClipGenerationTime: number | null
 }
 
 interface Database {
@@ -69,10 +71,12 @@ export class VideoDatabase {
       const content = fs.readFileSync(this.dbPath, 'utf-8')
       const db = JSON.parse(content)
 
-      // Backward compatibility: add clips array to old records that don't have it
+      // Backward compatibility: add clips array and new fields to old records
       db.videos = db.videos.map((video: any) => ({
         ...video,
-        clips: video.clips || []
+        clips: video.clips || [],
+        preparedVideoPath: video.preparedVideoPath || null,
+        lastClipGenerationTime: video.lastClipGenerationTime || null
       }))
 
       return db
@@ -109,6 +113,10 @@ export class VideoDatabase {
 
   public getClipsDir(videoId: string): string {
     return path.join(this.getVideoDir(videoId), 'clips')
+  }
+
+  public getPreparedVideoPath(videoId: string): string {
+    return path.join(this.getVideoDir(videoId), 'prepared.mp4')
   }
 
   public getVideo(videoId: string): VideoRecord | null {

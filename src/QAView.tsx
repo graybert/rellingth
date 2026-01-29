@@ -24,6 +24,7 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
   const [loading, setLoading] = useState(true)
   const [extracting, setExtracting] = useState(false)
   const [clipping, setClipping] = useState(false)
+  const [preciseMode, setPreciseMode] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -76,11 +77,16 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
     setClipping(true)
     setError(null)
     try {
-      const clips = await window.api.generateClips(videoId)
-      setVideo(prev => prev ? { ...prev, clips, clipState: 'DONE' } : null)
+      const result = await window.api.generateClips(videoId, preciseMode)
+      setVideo(prev => prev ? {
+        ...prev,
+        clips: result.clips,
+        clipState: 'DONE',
+        lastClipGenerationTime: result.generationTimeSeconds
+      } : null)
     } catch (err: any) {
       setError(err.message)
-      await loadVideo() // Reload to get updated clipState and lastError
+      await loadVideo()
     } finally {
       setClipping(false)
     }
@@ -93,8 +99,13 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
     setClipping(true)
     setError(null)
     try {
-      const clips = await window.api.regenerateClips(videoId)
-      setVideo(prev => prev ? { ...prev, clips, clipState: 'DONE' } : null)
+      const result = await window.api.regenerateClips(videoId, preciseMode)
+      setVideo(prev => prev ? {
+        ...prev,
+        clips: result.clips,
+        clipState: 'DONE',
+        lastClipGenerationTime: result.generationTimeSeconds
+      } : null)
     } catch (err: any) {
       setError(err.message)
       await loadVideo()
@@ -220,6 +231,26 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
           {video.clipState === 'NOT_STARTED' && (
             <div>
               <p>Video is approved. Generate 2-minute clips for distribution.</p>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={preciseMode}
+                    onChange={(e) => setPreciseMode(e.target.checked)}
+                    disabled={clipping}
+                  />
+                  <span style={{ fontSize: '14px' }}>
+                    <strong>Precise mode</strong> (exact 2:00 clips)
+                  </span>
+                </label>
+                <p style={{ fontSize: '12px', color: '#666', marginLeft: '26px', marginTop: '5px' }}>
+                  {preciseMode ? (
+                    <>First generation creates prepared video (~5-10 min for 60-min video), future regenerations are fast</>
+                  ) : (
+                    <>Fast mode (~1-2 min) but clip durations may vary by ±3 seconds due to keyframe positions</>
+                  )}
+                </p>
+              </div>
               <button
                 onClick={handleGenerateClips}
                 disabled={clipping}
@@ -245,7 +276,30 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
             <div>
               <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>
                 ✓ Clips generated successfully ({video.clips.length} clips)
+                {video.lastClipGenerationTime && (
+                  <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '10px' }}>
+                    ({video.lastClipGenerationTime.toFixed(1)}s)
+                  </span>
+                )}
               </p>
+              {video.preparedVideoPath && (
+                <p style={{ fontSize: '13px', color: '#666', marginTop: '5px' }}>
+                  ℹ️ Prepared video exists - future regenerations will be fast
+                </p>
+              )}
+              <div style={{ marginTop: '10px', marginBottom: '15px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={preciseMode}
+                    onChange={(e) => setPreciseMode(e.target.checked)}
+                    disabled={clipping}
+                  />
+                  <span style={{ fontSize: '14px' }}>
+                    <strong>Precise mode</strong> for regeneration
+                  </span>
+                </label>
+              </div>
               <div style={{ marginTop: '10px' }}>
                 <button
                   onClick={handleRegenerateClips}
