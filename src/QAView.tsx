@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { VideoRecord, VideoMetadata } from './global'
+import type { VideoRecord } from './global'
 
 interface QAViewProps {
   videoId: string
@@ -23,6 +23,7 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
   const [video, setVideo] = useState<VideoRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [extracting, setExtracting] = useState(false)
+  const [clipping, setClipping] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -68,6 +69,37 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
       setVideo(prev => prev ? { ...prev, status: 'REJECTED' } : null)
     } catch (err: any) {
       setError(err.message)
+    }
+  }
+
+  const handleGenerateClips = async () => {
+    setClipping(true)
+    setError(null)
+    try {
+      const clips = await window.api.generateClips(videoId)
+      setVideo(prev => prev ? { ...prev, clips, clipState: 'DONE' } : null)
+    } catch (err: any) {
+      setError(err.message)
+      await loadVideo() // Reload to get updated clipState and lastError
+    } finally {
+      setClipping(false)
+    }
+  }
+
+  const handleRegenerateClips = async () => {
+    if (!confirm('This will delete all existing clips and regenerate them. Continue?')) {
+      return
+    }
+    setClipping(true)
+    setError(null)
+    try {
+      const clips = await window.api.regenerateClips(videoId)
+      setVideo(prev => prev ? { ...prev, clips, clipState: 'DONE' } : null)
+    } catch (err: any) {
+      setError(err.message)
+      await loadVideo()
+    } finally {
+      setClipping(false)
     }
   }
 
@@ -143,7 +175,7 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
         )}
       </div>
 
-      <div>
+      <div style={{ marginBottom: '20px' }}>
         <h2>Actions</h2>
         <button
           onClick={handleApprove}
@@ -160,6 +192,96 @@ export default function QAView({ videoId, onBack }: QAViewProps) {
           Reject
         </button>
       </div>
+
+      {video.status === 'APPROVED' && (
+        <div style={{ marginTop: '20px', padding: '20px', background: '#f5f5f5', border: '1px solid #ddd' }}>
+          <h2>Clip Generation</h2>
+
+          {video.clipState === 'NOT_STARTED' && (
+            <div>
+              <p>Video is approved. Generate 2-minute clips for distribution.</p>
+              <button
+                onClick={handleGenerateClips}
+                disabled={clipping}
+                style={{ padding: '10px 20px', background: '#2196F3', color: 'white', border: 'none', cursor: 'pointer' }}
+              >
+                {clipping ? 'Generating Clips...' : 'Generate Clips'}
+              </button>
+            </div>
+          )}
+
+          {video.clipState === 'IN_PROGRESS' && (
+            <div>
+              <p style={{ color: '#ff9800', fontWeight: 'bold' }}>
+                ⏳ Generating clips... This may take several minutes for long videos.
+              </p>
+              <p style={{ fontSize: '14px', color: '#666' }}>
+                Do not close the app while clipping is in progress.
+              </p>
+            </div>
+          )}
+
+          {video.clipState === 'DONE' && (
+            <div>
+              <p style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                ✓ Clips generated successfully ({video.clips.length} clips)
+              </p>
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  onClick={handleRegenerateClips}
+                  disabled={clipping}
+                  style={{ marginRight: '10px', padding: '8px 16px', background: '#ff9800', color: 'white', border: 'none', cursor: 'pointer' }}
+                >
+                  Regenerate Clips
+                </button>
+              </div>
+              <div style={{ marginTop: '15px' }}>
+                <h3>Generated Clips:</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Clip</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Duration</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>Resolution</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #ddd' }}>File Size</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {video.clips.map((clip, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{clip.filename}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{formatDuration(clip.duration)}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{clip.resolution || 'N/A'}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #eee' }}>{formatBytes(clip.fileSize)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {video.clipState === 'FAILED' && (
+            <div>
+              <p style={{ color: '#f44336', fontWeight: 'bold' }}>
+                ✗ Clip generation failed
+              </p>
+              {video.lastError && (
+                <p style={{ fontSize: '14px', color: '#666', marginTop: '10px', padding: '10px', background: '#fee', border: '1px solid #fcc' }}>
+                  Error: {video.lastError}
+                </p>
+              )}
+              <button
+                onClick={handleGenerateClips}
+                disabled={clipping}
+                style={{ marginTop: '10px', padding: '10px 20px', background: '#2196F3', color: 'white', border: 'none', cursor: 'pointer' }}
+              >
+                {clipping ? 'Retrying...' : 'Retry Clipping'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

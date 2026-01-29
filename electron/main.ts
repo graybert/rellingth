@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import * as fs from 'fs'
@@ -7,8 +6,8 @@ import { randomUUID } from 'crypto'
 import { VideoDatabase, VideoRecord } from './db'
 import { extractMetadata } from './metadata'
 import { getLogger } from './logger'
+import { generateClips, regenerateClips } from './clipper'
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const db = new VideoDatabase()
@@ -169,6 +168,30 @@ app.whenReady().then(() => {
 
   ipcMain.handle('videos:updateStatus', async (_, videoId: string, status: string) => {
     db.updateVideo(videoId, { status: status as VideoRecord['status'] })
+  })
+
+  ipcMain.handle('videos:generateClips', async (_, videoId: string) => {
+    try {
+      logger.info('Generating clips requested', { videoId })
+      const clips = await generateClips(videoId, db)
+      logger.info('Clips generated successfully', { videoId, clipCount: clips.length })
+      return clips
+    } catch (error: any) {
+      logger.error('Failed to generate clips', { videoId, error: error.message })
+      throw error
+    }
+  })
+
+  ipcMain.handle('videos:regenerateClips', async (_, videoId: string) => {
+    try {
+      logger.info('Regenerating clips requested', { videoId })
+      const clips = await regenerateClips(videoId, db)
+      logger.info('Clips regenerated successfully', { videoId, clipCount: clips.length })
+      return clips
+    } catch (error: any) {
+      logger.error('Failed to regenerate clips', { videoId, error: error.message })
+      throw error
+    }
   })
 
   createWindow()

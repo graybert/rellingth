@@ -1,6 +1,5 @@
 import * as fs from 'fs'
 import * as path from 'path'
-import { app } from 'electron'
 
 class Logger {
   private logsDir: string

@@ -39,6 +39,8 @@ declare global {
       getVideo: (videoId: string) => Promise<VideoRecord | null>
       extractMetadata: (videoId: string) => Promise<VideoMetadata>
       updateStatus: (videoId: string, status: string) => Promise<void>
+      generateClips: (videoId: string) => Promise<ClipRecord[]>
+      regenerateClips: (videoId: string) => Promise<ClipRecord[]>
     }
   }
 }
