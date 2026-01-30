@@ -24,7 +24,7 @@ A fully local desktop application for video ingestion, quality assurance review,
 ## Installation
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/graybert/rellingth.git
 cd relling-takehome
 npm install
 ```
@@ -53,7 +53,7 @@ npm run build
 
 ## Metadata Extraction
 
-The application extracts technical metadata using FFprobe, including FPS, resolution, aspect ratio, duration, codec, and file size. **Rotation metadata is handled by checking both the `side_data_list` (modern format) and `tags.rotate` (legacy format) in FFprobe output.** This dual-check ensures compatibility with videos from various sources and encoders. The rotation value (0°, 90°, 180°, 270°) is displayed in the metadata table and helps QA reviewers identify videos that may need orientation correction. If no rotation metadata is present, the system displays "None (0°)" as the default.
+The application extracts technical metadata using FFprobe (FPS, resolution, aspect ratio, duration, codec, file size). Rotation/orientation is read from FFprobe by checking both `side_data_list` (commonly used) and `tags.rotate` (legacy tag) because different encoders store rotation differently. The UI displays the raw rotation value (e.g., -90/90/180/270) in the QA metadata table so a reviewer can verify the intended orientation. If no rotation field is present, the UI indicates it’s not present (treated as 0°).
 
 ## Data Storage
 
@@ -79,7 +79,7 @@ Each video gets a unique UUID identifier for deterministic file paths.
 
 ## Key Design Decisions
 
-- **JSON over SQLite**: Avoid native module compilation issues on Windows
+- **JSON over SQLite**: Avoid native module compilation issues
 - **Atomic writes**: Database writes use temp files for crash safety
 - **Custom protocol**: `video-file://` for local video playback
 - **Idempotency**: Clip generation checks existing state before processing
@@ -107,19 +107,7 @@ Application logs are written to `logs/app-YYYY-MM-DD-HH-mm-ss.log` with structur
 
 ## AI Usage Log
 
-This project was developed with assistance from Claude (Anthropic's AI assistant) via Claude Code CLI. AI assistance included:
-
-- **Architecture Design**: Hybrid clipping system (fast vs precise mode), JSON-based persistence strategy, IPC communication patterns
-- **Implementation**: All TypeScript/React code, FFmpeg command construction, error recovery logic, atomic database writes
-- **Problem Solving**:
-  - Fixed stuck IN_PROGRESS states with startup recovery
-  - Optimized precise mode from `-preset medium` (10+ min) to `-preset ultrafast` (3-5 min)
-  - Resolved inconsistent clip durations by implementing prepared video with forced keyframes
-  - Fixed rotation metadata extraction by checking both `side_data_list` and `tags.rotate`
-  - Debugged data directory location issues by switching from `app.getAppPath()` to `process.cwd()`
-- **Documentation**: Complete README and ARCHITECTURE.md with diagrams, design decisions, and troubleshooting guides
-
-Key decisions were made collaboratively through iterative testing and user feedback. The AI provided code generation and technical solutions, while the developer provided domain requirements, testing, and validation.
+Used Claude Code + ChatGPT for scaffolding (Electron IPC/preload typings), drafting ffprobe/ffmpeg invocation code, and quick UI iteration. AI was helpful for boilerplate and wiring; it was wrong/unfinished on a few correctness points (Windows path selection for data storage, retry behavior after partial clip output, and keyframe-aligned duration drift in fast segmentation). I verified behavior by running the full flow (upload → QA → approve → generate → clips view), inspecting output files on disk, and checking ffprobe output against what the UI displays.
 
 ## Tech Stack
 
@@ -129,8 +117,3 @@ Key decisions were made collaboratively through iterative testing and user feedb
 - **Database**: JSON file storage
 - **Logging**: Custom structured logger
 
-For detailed architecture documentation, see [ARCHITECTURE.md](./ARCHITECTURE.md).
-
-## License
-
-MIT
